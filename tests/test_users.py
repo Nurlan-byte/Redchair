@@ -74,5 +74,12 @@ async def test_has_more_reflects_remaining_items(client, test_users, limit, expe
 )
 async def test_happy_path_get_one_user(client, test_users, searched_username, username, email):
     res = await client.get(f"{settings.api_v1_prefix}/users/{username}")
+    user = schemas.UserOut(**res.json())
     assert res.status_code == 200
-    print(res)
+    assert user.username == "aspas"
+    assert user.email == "aspas@gmail.com"
+
+
+async def test_user_not_found(client, test_users):
+    res = await client.get(f"{settings.api_v1_prefix}/users/not_exist")
+    assert res.status_code == 404

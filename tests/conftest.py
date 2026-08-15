@@ -52,23 +52,55 @@ async def client(session):
 @pytest_asyncio.fixture
 async def test_users(session):
     users_data = [
-        {"username": "aspas", "email": "aspas@gmail.com", "password_hash": "ASpas123"},
-        {"username": "messi", "email": "messi@gmail.com", "password_hash": "Messi123"},
-        {"username": "ronaldo", "email": "ronaldo@gmail.com", "password_hash": "Ronaldo123"},
-        {"username": "neymar", "email": "neymar@gmail.com", "password_hash": "Neymar123"},
-        {"username": "haaland", "email": "haaland@gmail.com", "password_hash": "Haaland123"},
-        {"username": "mbappe", "email": "mbappe@gmail.com", "password_hash": "Mbappe123"},
-        {"username": "modric", "email": "modric@gmail.com", "password_hash": "Modric123"},
+        {
+            "username": "aspas",
+            "email": "aspas@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "messi",
+            "email": "messi@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "ronaldo",
+            "email": "ronaldo@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "neymar",
+            "email": "neymar@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "haaland",
+            "email": "haaland@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "mbappe",
+            "email": "mbappe@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
+        {
+            "username": "modric",
+            "email": "modric@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
         {
             "username": "debruyne",
             "email": "debruyne@gmail.com",
-            "password_hash": "DeBruyne123",
+            "password_hash": settings.TEST_PASSWORD_HASH,
         },
-        {"username": "pedri", "email": "pedri@gmail.com", "password_hash": "Pedri123"},
+        {
+            "username": "pedri",
+            "email": "pedri@gmail.com",
+            "password_hash": settings.TEST_PASSWORD_HASH,
+        },
         {
             "username": "bellingham",
             "email": "bellingham@gmail.com",
-            "password_hash": "Bellingham123",
+            "password_hash": settings.TEST_PASSWORD_HASH,
         },
     ]
 
