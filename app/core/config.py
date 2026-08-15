@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Literal
 
 from pydantic import PostgresDsn
@@ -23,11 +22,6 @@ class Settings(BaseSettings):
     @property
     def test_sqlalchemy_url(self) -> str:
         return str(self.test_database_url)
-
-
-@lru_cache
-def get_settings():
-    return Settings()
 
 
 settings = Settings()

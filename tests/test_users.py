@@ -1,6 +1,7 @@
 import pytest
 
 from app import schemas
+from app.core.config import settings
 
 
 @pytest.mark.parametrize(
@@ -21,7 +22,7 @@ async def test_pagination_respects_limit_and_offset(
     if offset is not None:
         params["offset"] = offset
 
-    res = await client.get("/api/v1/users", params=params)
+    res = await client.get(f"{settings.api_v1_prefix}/users", params=params)
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -36,7 +37,7 @@ async def test_pagination_respects_limit_and_offset(
     ],
 )
 async def test_search_by_username(client, test_users, query, expected_count):
-    res = await client.get("/api/v1/users", params={"username": query})
+    res = await client.get(f"{settings.api_v1_prefix}/users", params={"username": query})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -45,7 +46,7 @@ async def test_search_by_username(client, test_users, query, expected_count):
 
 @pytest.mark.parametrize("query", ["aspas", "ASPAS", "Aspas"])
 async def test_search_is_case_insensitive(client, test_users, query):
-    res = await client.get("/api/v1/users", params={"username": query})
+    res = await client.get(f"{settings.api_v1_prefix}/users", params={"username": query})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -61,8 +62,17 @@ async def test_search_is_case_insensitive(client, test_users, query):
     ],
 )
 async def test_has_more_reflects_remaining_items(client, test_users, limit, expected_has_more):
-    res = await client.get("/api/v1/users", params={"limit": limit})
+    res = await client.get(f"{settings.api_v1_prefix}/users", params={"limit": limit})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
     assert page.has_more is expected_has_more
+
+
+@pytest.mark.parametrize(
+    "searched_username, username, email", [("aspas", "aspas", "aspas@gmail.com")]
+)
+async def test_happy_path_get_one_user(client, test_users, searched_username, username, email):
+    res = await client.get(f"{settings.api_v1_prefix}/users/{username}")
+    assert res.status_code == 200
+    print(res)
