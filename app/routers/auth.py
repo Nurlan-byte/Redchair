@@ -48,9 +48,7 @@ async def create_user(new_user: schemas.UserCreate, db: AsyncSession = Depends(d
         password_hash=utils.hash_password(new_user.password),
     )
     db.add(user)
-    await db.commit()
-    await db.refresh(user)
+    await db.flush()
     diary = models.Diary(user_id=user.id)
     db.add(diary)
-    await db.commit()
     return user
