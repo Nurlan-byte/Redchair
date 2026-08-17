@@ -7,10 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from alembic import command
-from app import models
+from app import models, oauth2
 from app.core.config import settings
 from app.core.database import get_db
 from app.main import app
+from tests import constants
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -60,52 +61,52 @@ async def test_users(session):
         {
             "username": "aspas",
             "email": "aspas@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "messi",
             "email": "messi@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "ronaldo",
             "email": "ronaldo@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "neymar",
             "email": "neymar@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "haaland",
             "email": "haaland@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "mbappe",
             "email": "mbappe@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "modric",
             "email": "modric@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "debruyne",
             "email": "debruyne@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "pedri",
             "email": "pedri@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
         {
             "username": "bellingham",
             "email": "bellingham@gmail.com",
-            "password_hash": settings.TEST_PASSWORD_HASH,
+            "password_hash": constants.TEST_PASSWORD_HASH,
         },
     ]
 
@@ -115,3 +116,10 @@ async def test_users(session):
 
     result = await session.execute(select(models.User))
     return result.scalars().all()
+
+
+@pytest_asyncio.fixture
+async def authorized_client(client, test_users):
+    token = oauth2.create_access_token(data={"user_id": test_users[0].id})
+    client.headers["Authorization"] = f"Bearer {token}"
+    return client

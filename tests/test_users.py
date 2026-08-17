@@ -1,7 +1,7 @@
 import pytest
 
 from app import schemas
-from app.core.config import settings
+from tests import constants
 
 
 @pytest.mark.parametrize(
@@ -14,7 +14,7 @@ from app.core.config import settings
     ],
 )
 async def test_pagination_respects_limit_and_offset(
-    client, test_users, limit, offset, expected_count
+    authorized_client, test_users, limit, offset, expected_count
 ):
     params = {}
     if limit is not None:
@@ -22,7 +22,7 @@ async def test_pagination_respects_limit_and_offset(
     if offset is not None:
         params["offset"] = offset
 
-    res = await client.get(f"{settings.api_v1_prefix}/users", params=params)
+    res = await authorized_client.get(f"{constants.URL}/users", params=params)
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -36,8 +36,8 @@ async def test_pagination_respects_limit_and_offset(
         ("not_exist", 0),
     ],
 )
-async def test_search_by_username(client, test_users, query, expected_count):
-    res = await client.get(f"{settings.api_v1_prefix}/users", params={"username": query})
+async def test_search_by_username(authorized_client, test_users, query, expected_count):
+    res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -45,8 +45,8 @@ async def test_search_by_username(client, test_users, query, expected_count):
 
 
 @pytest.mark.parametrize("query", ["aspas", "ASPAS", "Aspas"])
-async def test_search_is_case_insensitive(client, test_users, query):
-    res = await client.get(f"{settings.api_v1_prefix}/users", params={"username": query})
+async def test_search_is_case_insensitive(authorized_client, test_users, query):
+    res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -61,8 +61,10 @@ async def test_search_is_case_insensitive(client, test_users, query):
         (30, False),
     ],
 )
-async def test_has_more_reflects_remaining_items(client, test_users, limit, expected_has_more):
-    res = await client.get(f"{settings.api_v1_prefix}/users", params={"limit": limit})
+async def test_has_more_reflects_remaining_items(
+    authorized_client, test_users, limit, expected_has_more
+):
+    res = await authorized_client.get(f"{constants.URL}/users", params={"limit": limit})
 
     assert res.status_code == 200
     page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
@@ -72,14 +74,16 @@ async def test_has_more_reflects_remaining_items(client, test_users, limit, expe
 @pytest.mark.parametrize(
     "searched_username, username, email", [("aspas", "aspas", "aspas@gmail.com")]
 )
-async def test_happy_path_get_one_user(client, test_users, searched_username, username, email):
-    res = await client.get(f"{settings.api_v1_prefix}/users/{username}")
+async def test_happy_path_get_one_user(
+    authorized_client, test_users, searched_username, username, email
+):
+    res = await authorized_client.get(f"{constants.URL}/users/{username}")
     user = schemas.UserOut(**res.json())
     assert res.status_code == 200
     assert user.username == "aspas"
     assert user.email == "aspas@gmail.com"
 
 
-async def test_user_not_found(client, test_users):
-    res = await client.get(f"{settings.api_v1_prefix}/users/not_exist")
+async def test_user_not_found(authorized_client, test_users):
+    res = await authorized_client.get(f"{constants.URL}/users/not_exist")
     assert res.status_code == 404

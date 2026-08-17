@@ -3,8 +3,6 @@ from typing import Literal
 from pydantic import PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ..utils import hash_password
-
 
 class Settings(BaseSettings):
     app_env: Literal["local", "ci", "prod"] = "local"
@@ -14,9 +12,6 @@ class Settings(BaseSettings):
     algorithm: str
     access_token_expire_minutes: int
     api_v1_prefix: str = "/api/v1"
-
-    TEST_PASSWORD: str = "Password12345"
-    TEST_PASSWORD_HASH: str = hash_password(TEST_PASSWORD)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

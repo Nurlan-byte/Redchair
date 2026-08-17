@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import models, schemas
+from .. import models, oauth2, schemas
 from ..core.database import get_db
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(oauth2.get_current_user)])
 
 
 @router.get("", response_model=schemas.PaginatedResponse[schemas.UserOut])
