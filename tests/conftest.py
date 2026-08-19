@@ -4,8 +4,7 @@ import pytest
 import pytest_asyncio
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from pydantic import PostgresDsn
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from alembic import command
@@ -15,28 +14,19 @@ from app.core.database import get_db
 from app.main import app
 from tests import constants
 
+print(f"\nDB: {make_url(settings.sqlalchemy_url).render_as_string(hide_password=False)}")
 
-class TestSettings(BaseSettings):
-    test_database_url: PostgresDsn
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    @property
-    def sqlalchemy_url(self) -> str:
-        return str(self.test_database_url)
-
-
-test_settings = TestSettings()
-
-if test_settings.sqlalchemy_url == settings.sqlalchemy_url:
-    pytest.exit("TEST_DATABASE_URL equals DATABASE_URL — refusing to run", returncode=1)
+db_name = make_url(settings.sqlalchemy_url).database or ""
+if not db_name.endswith("_test"):
+    pytest.exit(f"refusing to run: {db_name} is not a test database", returncode=1)
 
 
 @pytest_asyncio.fixture(scope="session")
 async def engine():
-    eng = create_async_engine(test_settings.sqlalchemy_url)
+    eng = create_async_engine(settings.sqlalchemy_url)
 
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", test_settings.sqlalchemy_url)
+    cfg.set_main_option("sqlalchemy.url", settings.sqlalchemy_url)
     await asyncio.to_thread(command.downgrade, cfg, "base")
     await asyncio.to_thread(command.upgrade, cfg, "head")
 
@@ -97,8 +87,6 @@ async def test_users(session):
     session.add_all(users)
     await session.commit()
 
-    # result = await session.execute(select(models.User))
-    # return result.scalars().all()
     return users
 
 
