@@ -1,9 +1,11 @@
 import asyncio
 
+import pytest
 import pytest_asyncio
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from pydantic import PostgresDsn
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from alembic import command
@@ -14,12 +16,27 @@ from app.main import app
 from tests import constants
 
 
+class TestSettings(BaseSettings):
+    test_database_url: PostgresDsn
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def sqlalchemy_url(self) -> str:
+        return str(self.test_database_url)
+
+
+test_settings = TestSettings()
+
+if test_settings.sqlalchemy_url == settings.sqlalchemy_url:
+    pytest.exit("TEST_DATABASE_URL equals DATABASE_URL — refusing to run", returncode=1)
+
+
 @pytest_asyncio.fixture(scope="session")
 async def engine():
-    eng = create_async_engine(settings.test_sqlalchemy_url)
+    eng = create_async_engine(test_settings.sqlalchemy_url)
 
     cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", settings.test_sqlalchemy_url)
+    cfg.set_main_option("sqlalchemy.url", test_settings.sqlalchemy_url)
     await asyncio.to_thread(command.downgrade, cfg, "base")
     await asyncio.to_thread(command.upgrade, cfg, "head")
 
@@ -57,65 +74,32 @@ async def client(session):
 
 @pytest_asyncio.fixture
 async def test_users(session):
-    users_data = [
-        {
-            "username": "aspas",
-            "email": "aspas@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "messi",
-            "email": "messi@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "ronaldo",
-            "email": "ronaldo@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "neymar",
-            "email": "neymar@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "haaland",
-            "email": "haaland@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "mbappe",
-            "email": "mbappe@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "modric",
-            "email": "modric@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "debruyne",
-            "email": "debruyne@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "pedri",
-            "email": "pedri@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
-        {
-            "username": "bellingham",
-            "email": "bellingham@gmail.com",
-            "password_hash": constants.TEST_PASSWORD_HASH,
-        },
+    USERNAMES = [
+        "aspas",
+        "penguin",
+        "ronaldo",
+        "neymar",
+        "haaland",
+        "mbappe",
+        "modric",
+        "debruyne",
+        "pedri",
+        "bellingham",
     ]
-
-    users = [models.User(**u) for u in users_data]
+    users = [
+        models.User(
+            username=u,
+            email=f"{u}@gmail.com",
+            password_hash=constants.TEST_PASSWORD_HASH,
+        )
+        for u in USERNAMES
+    ]
     session.add_all(users)
     await session.commit()
 
-    result = await session.execute(select(models.User))
-    return result.scalars().all()
+    # result = await session.execute(select(models.User))
+    # return result.scalars().all()
+    return users
 
 
 @pytest_asyncio.fixture
