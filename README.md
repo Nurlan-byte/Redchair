@@ -20,7 +20,9 @@ uv run uvicorn app.main:app --reload
 Fill in `.env` first. Generate `SECRET_KEY` with
 `python -c "import secrets; print(secrets.token_hex(32))"`.
 
-If port 5434 is taken, change the port number in both DATABASE_URL and TEST_DATABASE_URL in .env.
+If port 5434 is already in use, change the host port in the `db` service in
+`docker-compose.yml` and update `DATABASE_URL` in `.env` to match.
+The test database port (5433) is set in `docker-compose.yml` and `pyproject.toml`.
 
 Swagger UI: http://127.0.0.1:8000/docs
 
