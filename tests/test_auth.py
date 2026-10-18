@@ -96,7 +96,7 @@ async def test_register_rolls_back_user_if_diary_crashes(client, session, monkey
     def boom(*args, **kwargs):
         raise RuntimeError("diary creation failed")
 
-    monkeypatch.setattr("app.routers.auth.models.Diary", boom)
+    monkeypatch.setattr("app.services.auth.models.Diary", boom)
     with pytest.raises(RuntimeError):
         await client.post(f"{constants.URL}/register", json=constants.user_payload())
 

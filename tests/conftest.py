@@ -8,9 +8,10 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from alembic import command
-from app import models, oauth2
+from app import models
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import create_access_token
 from app.main import app
 from tests import constants
 
@@ -92,6 +93,6 @@ async def test_users(session):
 
 @pytest_asyncio.fixture
 async def authorized_client(client, test_users):
-    token = oauth2.create_access_token(data={"user_id": test_users[0].id})
+    token = create_access_token(data={"user_id": test_users[0].id})
     client.headers["Authorization"] = f"Bearer {token}"
     return client

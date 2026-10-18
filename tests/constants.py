@@ -1,5 +1,5 @@
 from app.core.config import settings
-from app.utils import hash_password
+from app.core.security import hash_password
 
 TEST_PASSWORD = "Password12345"
 TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
