@@ -1,7 +1,5 @@
 # Redchair
 
-![CI](https://github.com/Nurlan-byte/Redchair/actions/workflows/ci.yml/badge.svg)
-
 Social habit tracker API.
 FastAPI · SQLAlchemy 2.0 (async) · PostgreSQL · Alembic · Pydantic v2 · JWT · pytest
 
@@ -35,3 +33,5 @@ uv run pytest
 Tests run against a separate throwaway PostgreSQL container. The schema is
 rebuilt from migrations on every run; each test runs in a transaction that is
 rolled back afterwards.
+
+CI runs the same checks on a self-hosted Jenkins (see `Jenkinsfile`); its build status is not public.
