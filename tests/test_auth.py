@@ -86,10 +86,21 @@ async def test_registered_user_can_login(client):
     assert res.status_code == 200
 
 
-async def test_register_duplicates(client, session):
+@pytest.mark.parametrize(
+    "overrides, code",
+    [
+        ({"username": "Ahmed2"}, "email_taken"),
+        ({"email": "ahmed2@gmail.com"}, "username_taken"),
+    ],
+    ids=["email", "username"],
+)
+async def test_register_duplicate_returns_409_with_code(client, overrides, code):
     await client.post(f"{constants.URL}/register", json=constants.user_payload())
-    res = await client.post(f"{constants.URL}/register", json=constants.user_payload())
+
+    res = await client.post(f"{constants.URL}/register", json=constants.user_payload(**overrides))
+
     assert res.status_code == 409
+    assert res.json()["code"] == code
 
 
 async def test_register_rolls_back_user_if_diary_crashes(client, session, monkeypatch):

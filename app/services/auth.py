@@ -1,27 +1,29 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
 from app.core.security import create_access_token, hash_password, verify_password
 from app.exceptions import AuthenticationError, ConflictError
 
+_UNIQUE_TO_ERROR = {
+    "uq_users_email": ("email_taken", "Email already registered"),
+    "uq_users_username": ("username_taken", "Username already registered"),
+}
+
 
 async def register_user(
     session: AsyncSession, *, username: str, email: str, password: str
 ) -> models.User:
-    email_taken = await session.scalar(select(models.User.id).where(models.User.email == email))
-    if email_taken is not None:
-        raise ConflictError("email_taken", "Email already registered")
-
-    username_taken = await session.scalar(
-        select(models.User.id).where(models.User.username == username)
-    )
-    if username_taken is not None:
-        raise ConflictError("username_taken", "Username already registered")
-
     user = models.User(username=username, email=email, password_hash=hash_password(password))
     session.add(user)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError as e:
+        constraint = getattr(getattr(e.orig, "__cause__", None), "constraint_name", None)
+        if constraint in _UNIQUE_TO_ERROR:
+            raise ConflictError(*_UNIQUE_TO_ERROR[constraint]) from e
+        raise
     session.add(models.Diary(user_id=user.id))
     return user
 
