@@ -5,13 +5,19 @@ import jwt
 
 from app.core.config import settings
 
+# bcrypt 5 raises ValueError on longer input instead of truncating it.
+MAX_PASSWORD_BYTES = 72
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return bcrypt.checkpw(password.encode(), password_hash.encode())
+    raw = password.encode()
+    if len(raw) > MAX_PASSWORD_BYTES:
+        return False
+    return bcrypt.checkpw(raw, password_hash.encode())
 
 
 def create_access_token(data: dict) -> str:

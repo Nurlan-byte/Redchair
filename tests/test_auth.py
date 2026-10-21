@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app import models, schemas
 from app.core.config import settings
+from app.core.security import MAX_PASSWORD_BYTES
 from tests import constants
 
 
@@ -101,6 +102,32 @@ async def test_register_duplicate_returns_409_with_code(client, overrides, code)
 
     assert res.status_code == 409
     assert res.json()["code"] == code
+
+
+@pytest.mark.parametrize(
+    "password",
+    ["Aa1" + "a" * 70, "Ж" + "ж" * 35 + "1"],
+    ids=["ascii-73", "cyrillic-37"],
+)
+async def test_register_rejects_long_password(client, password):
+    assert len(password.encode()) > MAX_PASSWORD_BYTES
+
+    res = await client.post(
+        f"{constants.URL}/register",
+        json=constants.user_payload(password=password, confirm_password=password),
+    )
+
+    assert res.status_code == 422
+    assert res.json()["detail"][0]["loc"] == ["body", "password"]
+
+
+async def test_login_with_long_password_returns_401(client, test_users):
+    res = await client.post(
+        f"{constants.URL}/login",
+        data={"username": test_users[0].email, "password": "a" * (MAX_PASSWORD_BYTES + 1)},
+    )
+
+    assert res.status_code == 401
 
 
 async def test_register_rolls_back_user_if_diary_crashes(client, session, monkeypatch):

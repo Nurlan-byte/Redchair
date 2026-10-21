@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 
+from app.core.security import MAX_PASSWORD_BYTES
+
 
 class PaginatedResponse[T](BaseModel):
     items: list[T]
@@ -29,6 +31,8 @@ class UserCreate(UserBase):
     @field_validator("password")
     @classmethod
     def validate_password(cls, password: str):
+        if len(password.encode()) > MAX_PASSWORD_BYTES:
+            raise ValueError(f"Password must be at most {MAX_PASSWORD_BYTES} bytes long")
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long")
 
