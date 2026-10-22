@@ -104,6 +104,31 @@ async def test_register_duplicate_returns_409_with_code(client, overrides, code)
     assert res.json()["code"] == code
 
 
+async def test_register_upper_case_email_then_login_lower_case(client):
+    email = constants.user_payload()["email"]
+    await client.post(f"{constants.URL}/register", json=constants.user_payload(email=email.upper()))
+
+    res = await client.post(
+        f"{constants.URL}/login",
+        data={"username": email, "password": constants.TEST_PASSWORD},
+    )
+
+    assert res.status_code == 200
+
+
+async def test_register_duplicate_email_in_other_case_returns_409(client):
+    email = constants.user_payload()["email"]
+    await client.post(f"{constants.URL}/register", json=constants.user_payload())
+
+    res = await client.post(
+        f"{constants.URL}/register",
+        json=constants.user_payload(username="Ahmed2", email=email.upper()),
+    )
+
+    assert res.status_code == 409
+    assert res.json()["code"] == "email_taken"
+
+
 @pytest.mark.parametrize(
     "password",
     ["Aa1" + "a" * 70, "Ж" + "ж" * 35 + "1"],

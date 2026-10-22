@@ -15,6 +15,8 @@ _UNIQUE_TO_ERROR = {
 async def register_user(
     session: AsyncSession, *, username: str, email: str, password: str
 ) -> models.User:
+    # EmailStr lowercases only the domain; the local part keeps its case.
+    email = email.lower()
     user = models.User(username=username, email=email, password_hash=hash_password(password))
     session.add(user)
     try:
@@ -29,7 +31,7 @@ async def register_user(
 
 
 async def login(session: AsyncSession, *, email: str, password: str) -> str:
-    user = await session.scalar(select(models.User).where(models.User.email == email))
+    user = await session.scalar(select(models.User).where(models.User.email == email.lower()))
     if user is None or not verify_password(password, user.password_hash):
         raise AuthenticationError("invalid_credentials", "Invalid credentials")
     return create_access_token(data={"user_id": user.id})
