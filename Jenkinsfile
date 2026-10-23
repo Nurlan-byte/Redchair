@@ -45,6 +45,13 @@ pipeline {
                         exit 1
                     fi
                 '''
+                // Routers only speak HTTP; queries live in services.
+                sh '''
+                    if grep -rn sqlalchemy app/routers; then
+                        echo "app/routers must not import sqlalchemy" >&2
+                        exit 1
+                    fi
+                '''
             }
         }
 

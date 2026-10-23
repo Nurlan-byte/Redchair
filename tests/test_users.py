@@ -87,3 +87,4 @@ async def test_happy_path_get_one_user(
 async def test_user_not_found(authorized_client, test_users):
     res = await authorized_client.get(f"{constants.URL}/users/not_exist")
     assert res.status_code == 404
+    assert res.json()["code"] == "user_not_found"
