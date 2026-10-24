@@ -12,7 +12,7 @@ async def list_users(
 ) -> tuple[Sequence[models.User], bool]:
     stmt = select(models.User)
     if username:
-        stmt = stmt.where(models.User.username.ilike(f"%{username}%"))
+        stmt = stmt.where(models.User.username.icontains(username, autoescape=True))
     res = await session.scalars(
         stmt.order_by(models.User.id.desc()).limit(limit + 1).offset(offset)
     )

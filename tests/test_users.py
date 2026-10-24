@@ -44,6 +44,17 @@ async def test_search_by_username(authorized_client, test_users, query, expected
     assert len(page.items) == expected_count
 
 
+@pytest.mark.parametrize("query", ["_", "%"])
+async def test_search_escapes_like_wildcards(authorized_client, test_users, query):
+    assert not any(query in user.username for user in test_users)
+
+    res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
+
+    assert res.status_code == 200
+    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    assert page.items == []
+
+
 @pytest.mark.parametrize("query", ["aspas", "ASPAS", "Aspas"])
 async def test_search_is_case_insensitive(authorized_client, test_users, query):
     res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
