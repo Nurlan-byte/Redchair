@@ -1,6 +1,7 @@
 import pytest
 
 from app import schemas
+from app.core.security import create_access_token
 from tests import constants
 
 
@@ -99,3 +100,30 @@ async def test_user_not_found(authorized_client, test_users):
     res = await authorized_client.get(f"{constants.URL}/users/not_exist")
     assert res.status_code == 404
     assert res.json()["code"] == "user_not_found"
+
+
+async def test_users_requires_auth(client, test_users):
+    res = await client.get(f"{constants.URL}/users")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "not_authenticated"
+    assert res.headers["WWW-Authenticate"] == "Bearer"
+
+
+async def test_users_rejects_malformed_token(client, test_users):
+    client.headers["Authorization"] = "Bearer not-a-jwt"
+
+    res = await client.get(f"{constants.URL}/users")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_token"
+
+
+async def test_users_rejects_token_of_missing_user(client, test_users):
+    missing_id = max(user.id for user in test_users) + 1
+    client.headers["Authorization"] = f"Bearer {create_access_token(data={'user_id': missing_id})}"
+
+    res = await client.get(f"{constants.URL}/users")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_token"
