@@ -26,7 +26,7 @@ async def test_pagination_respects_limit_and_offset(
     res = await authorized_client.get(f"{constants.URL}/users", params=params)
 
     assert res.status_code == 200
-    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
     assert len(page.items) == expected_count
 
 
@@ -41,7 +41,7 @@ async def test_search_by_username(authorized_client, test_users, query, expected
     res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
 
     assert res.status_code == 200
-    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
     assert len(page.items) == expected_count
 
 
@@ -52,7 +52,7 @@ async def test_search_escapes_like_wildcards(authorized_client, test_users, quer
     res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
 
     assert res.status_code == 200
-    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
     assert page.items == []
 
 
@@ -61,7 +61,7 @@ async def test_search_is_case_insensitive(authorized_client, test_users, query):
     res = await authorized_client.get(f"{constants.URL}/users", params={"username": query})
 
     assert res.status_code == 200
-    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
     assert len(page.items) == 1
     assert page.items[0].username == "aspas"
 
@@ -79,7 +79,7 @@ async def test_has_more_reflects_remaining_items(
     res = await authorized_client.get(f"{constants.URL}/users", params={"limit": limit})
 
     assert res.status_code == 200
-    page = schemas.PaginatedResponse[schemas.UserOut](**res.json())
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
     assert page.has_more is expected_has_more
 
 
@@ -89,11 +89,11 @@ async def test_has_more_reflects_remaining_items(
 async def test_happy_path_get_one_user(
     authorized_client, test_users, searched_username, username, email
 ):
-    res = await authorized_client.get(f"{constants.URL}/users/{username}")
-    user = schemas.UserOut(**res.json())
+    res = await authorized_client.get(f"{constants.URL}/users/{searched_username}")
     assert res.status_code == 200
-    assert user.username == "aspas"
-    assert user.email == "aspas@gmail.com"
+    user = schemas.UserPublic(**res.json())
+    assert user.username == username
+    assert email not in res.text
 
 
 async def test_user_not_found(authorized_client, test_users):
@@ -127,3 +127,26 @@ async def test_users_rejects_token_of_missing_user(client, test_users):
 
     assert res.status_code == 401
     assert res.json()["code"] == "invalid_token"
+
+
+async def test_users_list_hides_email(authorized_client, test_users):
+    res = await authorized_client.get(f"{constants.URL}/users")
+
+    assert res.status_code == 200
+    assert all("email" not in item for item in res.json()["items"])
+
+
+async def test_me_returns_current_user_email(authorized_client, test_users):
+    res = await authorized_client.get(f"{constants.URL}/users/me")
+
+    assert res.status_code == 200
+    me = schemas.UserPrivate(**res.json())
+    assert me.id == test_users[0].id
+    assert me.email == test_users[0].email
+
+
+async def test_me_requires_auth(client, test_users):
+    res = await client.get(f"{constants.URL}/users/me")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "not_authenticated"

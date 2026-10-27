@@ -4,7 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
 from app.core.security import create_access_token, hash_password, verify_password
-from app.exceptions import AuthenticationError, ConflictError
+from app.exceptions import AuthenticationError, ConflictError, DomainValidationError
+
+# "me" would be shadowed by GET /users/me, so nobody could open that profile.
+RESERVED_USERNAMES = frozenset({"me"})
 
 _UNIQUE_TO_ERROR = {
     "uq_users_email": ("email_taken", "Email already registered"),
@@ -15,6 +18,9 @@ _UNIQUE_TO_ERROR = {
 async def register_user(
     session: AsyncSession, *, username: str, email: str, password: str
 ) -> models.User:
+    if username in RESERVED_USERNAMES:
+        raise DomainValidationError("username_reserved", f"Username {username!r} is reserved")
+
     # EmailStr lowercases only the domain; the local part keeps its case.
     email = email.lower()
     user = models.User(username=username, email=email, password_hash=hash_password(password))

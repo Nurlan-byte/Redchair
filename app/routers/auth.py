@@ -19,7 +19,7 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.UserOut)
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.UserPrivate)
 async def create_user(new_user: schemas.UserCreate, db: DbSession):
     return await auth_service.register_user(
         db,

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Query
 
-from .. import oauth2, schemas
+from .. import models, oauth2, schemas
 from ..core.database import DbSession
 from ..services import users as users_service
 
 router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(oauth2.get_current_user)])
 
 
-@router.get("", response_model=schemas.PaginatedResponse[schemas.UserOut])
+@router.get("", response_model=schemas.PaginatedResponse[schemas.UserPublic])
 async def all_users(
     db: DbSession,
     limit: int = Query(30, ge=1, le=100),
@@ -20,6 +20,12 @@ async def all_users(
     return schemas.PaginatedResponse(items=users, limit=limit, offset=offset, has_more=has_more)
 
 
-@router.get("/{username}", response_model=schemas.UserOut)
+# Declared before /{username}, otherwise "me" is captured as a username.
+@router.get("/me", response_model=schemas.UserPrivate)
+async def get_me(current_user: models.User = Depends(oauth2.get_current_user)):
+    return current_user
+
+
+@router.get("/{username}", response_model=schemas.UserPublic)
 async def get_one_user(username: str, db: DbSession):
     return await users_service.get_user_by_username(db, username=username)

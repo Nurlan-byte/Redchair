@@ -49,7 +49,7 @@ async def test_register_returns_created_user(client):
     res = await client.post(f"{constants.URL}/register", json=constants.user_payload())
 
     assert res.status_code == 201
-    user = schemas.UserOut(**res.json())
+    user = schemas.UserPrivate(**res.json())
     assert user.username == "Ahmed"
     assert user.email == "ahmed@gmail.com"
     assert user.id > 0
@@ -153,6 +153,13 @@ async def test_login_with_long_password_returns_401(client, test_users):
     )
 
     assert res.status_code == 401
+
+
+async def test_register_rejects_reserved_username(client):
+    res = await client.post(f"{constants.URL}/register", json=constants.user_payload(username="me"))
+
+    assert res.status_code == 422
+    assert res.json()["code"] == "username_reserved"
 
 
 async def test_register_rolls_back_user_if_diary_crashes(client, session, monkeypatch):
