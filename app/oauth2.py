@@ -9,7 +9,9 @@ from .core.database import DbSession
 from .exceptions import AuthenticationError
 
 # auto_error=False: otherwise FastAPI answers a missing token itself, bypassing AppError.
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/login", auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.api_v1_prefix}/auth/login", auto_error=False
+)
 
 
 CREDENTIAL_ERRORS = (jwt.PyJWTError, KeyError, TypeError, ValueError)

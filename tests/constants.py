@@ -4,6 +4,8 @@ from app.core.security import hash_password
 TEST_PASSWORD = "Password12345"
 TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
 URL = f"{settings.api_v1_prefix}"
+LOGIN_URL = f"{URL}/auth/login"
+REGISTER_URL = f"{URL}/auth/register"
 
 
 def user_payload(**overrides):

@@ -5,7 +5,7 @@ from .. import schemas
 from ..core.database import DbSession
 from ..services import auth as auth_service
 
-router = APIRouter(tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/login")
