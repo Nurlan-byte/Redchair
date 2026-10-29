@@ -54,4 +54,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
-env = ["DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/redchair_test"]
+env = [
+    "DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/redchair_test",
+    "SECRET_KEY=test-secret-key-that-is-at-least-32-bytes",
+]

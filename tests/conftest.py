@@ -15,7 +15,7 @@ from app.core.security import create_access_token
 from app.main import app
 from tests import constants
 
-print(f"\nDB: {make_url(settings.sqlalchemy_url).render_as_string(hide_password=False)}")
+print(f"\nDB: {make_url(settings.sqlalchemy_url).render_as_string(hide_password=True)}")
 
 db_name = make_url(settings.sqlalchemy_url).database or ""
 if not db_name.endswith("_test"):

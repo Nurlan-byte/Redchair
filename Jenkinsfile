@@ -16,7 +16,7 @@ pipeline {
         PATH+UV = '/var/lib/jenkins/.local/bin'
         PG_CONTAINER = 'redchair-ci-pg'
         DATABASE_URL = 'postgresql+asyncpg://postgres:postgres@localhost:5433/redchair_test'
-        SECRET_KEY = 'testing-only'
+        SECRET_KEY = 'test-secret-key-that-is-at-least-32-bytes'
         ALGORITHM = 'HS256'
         ACCESS_TOKEN_EXPIRE_MINUTES = '15'
     }
