@@ -1,8 +1,12 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
 
 from app.core.security import MAX_PASSWORD_BYTES
+
+# Unknown names raise ZoneInfoNotFoundError; empty or path-like ones raise ValueError.
+ZONEINFO_ERRORS = (ZoneInfoNotFoundError, ValueError)
 
 
 class PaginatedResponse[T](BaseModel):
@@ -22,6 +26,7 @@ class UserPublic(BaseModel):
 
 class UserPrivate(UserPublic):
     email: EmailStr
+    timezone: str
 
 
 class UserCreate(BaseModel):
@@ -29,6 +34,16 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     confirm_password: str
+    timezone: str = "UTC"
+
+    @field_validator("timezone")
+    @classmethod
+    def validate_timezone(cls, timezone: str):
+        try:
+            ZoneInfo(timezone)
+        except ZONEINFO_ERRORS:
+            raise ValueError(f"Unknown time zone: {timezone!r}") from None
+        return timezone
 
     @field_validator("password")
     @classmethod

@@ -16,14 +16,19 @@ _UNIQUE_TO_ERROR = {
 
 
 async def register_user(
-    session: AsyncSession, *, username: str, email: str, password: str
+    session: AsyncSession, *, username: str, email: str, password: str, timezone: str = "UTC"
 ) -> models.User:
     if username in RESERVED_USERNAMES:
         raise DomainValidationError("username_reserved", f"Username {username!r} is reserved")
 
     # EmailStr lowercases only the domain; the local part keeps its case.
     email = email.lower()
-    user = models.User(username=username, email=email, password_hash=hash_password(password))
+    user = models.User(
+        username=username,
+        email=email,
+        password_hash=hash_password(password),
+        timezone=timezone,
+    )
     session.add(user)
     try:
         await session.flush()

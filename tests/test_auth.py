@@ -53,6 +53,32 @@ async def test_register_returns_created_user(client):
     assert user.id > 0
 
 
+async def test_register_defaults_timezone_to_utc(client):
+    res = await client.post(constants.REGISTER_URL, json=constants.user_payload())
+
+    assert res.status_code == 201
+    assert schemas.UserPrivate(**res.json()).timezone == "UTC"
+
+
+async def test_register_accepts_valid_timezone(client):
+    timezone = "Asia/Almaty"
+
+    res = await client.post(constants.REGISTER_URL, json=constants.user_payload(timezone=timezone))
+
+    assert res.status_code == 201
+    assert schemas.UserPrivate(**res.json()).timezone == timezone
+
+
+@pytest.mark.parametrize(
+    "timezone", ["Mars/Olympus", "", "../etc/passwd"], ids=["unknown", "empty", "path"]
+)
+async def test_register_rejects_invalid_timezone(client, timezone):
+    res = await client.post(constants.REGISTER_URL, json=constants.user_payload(timezone=timezone))
+
+    assert res.status_code == 422
+    assert res.json()["detail"][0]["loc"] == ["body", "timezone"]
+
+
 async def test_register_does_not_leak_password(client):
     res = await client.post(constants.REGISTER_URL, json=constants.user_payload())
 

@@ -26,4 +26,5 @@ async def create_user(new_user: schemas.UserCreate, db: DbSession):
         username=new_user.username,
         email=new_user.email,
         password=new_user.password,
+        timezone=new_user.timezone,
     )
