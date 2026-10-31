@@ -1,4 +1,5 @@
 import asyncio
+from datetime import UTC, datetime
 
 import pytest
 import pytest_asyncio
@@ -89,6 +90,14 @@ async def test_users(session):
     await session.commit()
 
     return users
+
+
+@pytest_asyncio.fixture
+async def deleted_user(session, test_users):
+    user = test_users[-1]
+    user.deleted_at = datetime.now(UTC)
+    await session.commit()
+    return user
 
 
 @pytest_asyncio.fixture

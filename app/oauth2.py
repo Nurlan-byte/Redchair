@@ -31,6 +31,6 @@ async def get_current_user(
         raise invalid_token from None
 
     user = await db.get(models.User, user_id)
-    if user is None:
+    if user is None or user.deleted_at is not None:
         raise invalid_token
     return user

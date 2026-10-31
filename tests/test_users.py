@@ -102,6 +102,22 @@ async def test_user_not_found(authorized_client, test_users):
     assert res.json()["code"] == "user_not_found"
 
 
+async def test_users_list_excludes_deleted_user(authorized_client, test_users, deleted_user):
+    res = await authorized_client.get(f"{constants.URL}/users")
+
+    assert res.status_code == 200
+    page = schemas.PaginatedResponse[schemas.UserPublic](**res.json())
+    assert len(page.items) == len(test_users) - 1
+    assert deleted_user.id not in {user.id for user in page.items}
+
+
+async def test_get_deleted_user_returns_404(authorized_client, deleted_user):
+    res = await authorized_client.get(f"{constants.URL}/users/{deleted_user.username}")
+
+    assert res.status_code == 404
+    assert res.json()["code"] == "user_not_found"
+
+
 async def test_users_requires_auth(client, test_users):
     res = await client.get(f"{constants.URL}/users")
 

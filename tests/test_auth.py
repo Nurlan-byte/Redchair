@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app import models, schemas
 from app.core.config import settings
-from app.core.security import MAX_PASSWORD_BYTES
+from app.core.security import MAX_PASSWORD_BYTES, create_access_token
 from tests import constants
 
 
@@ -41,6 +41,26 @@ async def test_token_user_id(client, test_users):
 async def test_incorrect_login(client, test_users, email, password, status_code):
     res = await client.post(constants.LOGIN_URL, data={"username": email, "password": password})
     assert res.status_code == status_code
+
+
+async def test_login_of_deleted_user_returns_401(client, deleted_user):
+    res = await client.post(
+        constants.LOGIN_URL,
+        data={"username": deleted_user.email, "password": constants.TEST_PASSWORD},
+    )
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_credentials"
+
+
+async def test_token_of_deleted_user_returns_401(client, deleted_user):
+    token = create_access_token(data={"user_id": deleted_user.id})
+    client.headers["Authorization"] = f"Bearer {token}"
+
+    res = await client.get(f"{constants.URL}/users/me")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_token"
 
 
 async def test_register_returns_created_user(client):
