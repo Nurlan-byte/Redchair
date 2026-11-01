@@ -137,7 +137,7 @@ async def test_users_rejects_malformed_token(client, test_users):
 
 async def test_users_rejects_token_of_missing_user(client, test_users):
     missing_id = max(user.id for user in test_users) + 1
-    client.headers["Authorization"] = f"Bearer {create_access_token(data={'user_id': missing_id})}"
+    client.headers["Authorization"] = f"Bearer {create_access_token(missing_id)}"
 
     res = await client.get(f"{constants.URL}/users")
 

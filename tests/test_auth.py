@@ -24,7 +24,23 @@ async def test_token_user_id(client, test_users):
         data={"username": "aspas@gmail.com", "password": constants.TEST_PASSWORD},
     )
     payload = jwt.decode(res.json()["access_token"], settings.secret_key, settings.algorithm)
-    assert payload["user_id"] == test_users[0].id
+    assert int(payload["sub"]) == test_users[0].id
+
+
+def test_access_token_sub_is_string_user_id():
+    user_id = 42
+
+    payload = jwt.decode(create_access_token(user_id), settings.secret_key, settings.algorithm)
+
+    assert payload["sub"] == str(user_id)
+    assert payload["iat"] <= payload["exp"]
+
+
+def test_access_tokens_have_unique_jti():
+    first = jwt.decode(create_access_token(1), settings.secret_key, settings.algorithm)
+    second = jwt.decode(create_access_token(1), settings.secret_key, settings.algorithm)
+
+    assert first["jti"] != second["jti"]
 
 
 @pytest.mark.parametrize(
@@ -54,7 +70,7 @@ async def test_login_of_deleted_user_returns_401(client, deleted_user):
 
 
 async def test_token_of_deleted_user_returns_401(client, deleted_user):
-    token = create_access_token(data={"user_id": deleted_user.id})
+    token = create_access_token(deleted_user.id)
     client.headers["Authorization"] = f"Bearer {token}"
 
     res = await client.get(f"{constants.URL}/users/me")

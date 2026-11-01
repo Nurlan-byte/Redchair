@@ -49,4 +49,4 @@ async def login(session: AsyncSession, *, email: str, password: str) -> str:
     )
     if user is None or not verify_password(password, user.password_hash):
         raise AuthenticationError("invalid_credentials", "Invalid credentials")
-    return create_access_token(data={"user_id": user.id})
+    return create_access_token(user.id)

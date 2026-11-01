@@ -1,3 +1,4 @@
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -20,8 +21,13 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(raw, password_hash.encode())
 
 
-def create_access_token(data: dict) -> str:
-    to_encode = data.copy()
-    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
+def create_access_token(user_id: int) -> str:
+    now = datetime.now(UTC)
+    payload = {
+        # PyJWT 2.10+ rejects a non-string sub on decode.
+        "sub": str(user_id),
+        "jti": str(uuid.uuid4()),
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)

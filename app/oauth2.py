@@ -26,7 +26,7 @@ async def get_current_user(
     invalid_token = AuthenticationError("invalid_token", "Could not validate credentials")
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id = int(payload["user_id"])
+        user_id = int(payload["sub"])
     except CREDENTIAL_ERRORS:
         raise invalid_token from None
 

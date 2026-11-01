@@ -102,6 +102,6 @@ async def deleted_user(session, test_users):
 
 @pytest_asyncio.fixture
 async def authorized_client(client, test_users):
-    token = create_access_token(data={"user_id": test_users[0].id})
+    token = create_access_token(test_users[0].id)
     client.headers["Authorization"] = f"Bearer {token}"
     return client
