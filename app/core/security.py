@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -8,6 +10,7 @@ from app.core.config import settings
 
 # bcrypt 5 raises ValueError on longer input instead of truncating it.
 MAX_PASSWORD_BYTES = 72
+REFRESH_TOKEN_BYTES = 32
 
 
 def hash_password(password: str) -> str:
@@ -31,3 +34,12 @@ def create_access_token(user_id: int) -> str:
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+
+
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(REFRESH_TOKEN_BYTES)
+
+
+def hash_refresh_token(token: str) -> str:
+    # 256 random bits need no salt or slow hash, and a deterministic digest can be looked up.
+    return hashlib.sha256(token.encode()).hexdigest()

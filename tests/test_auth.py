@@ -1,6 +1,9 @@
+import hashlib
+from datetime import UTC, datetime, timedelta
+
 import jwt
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app import models, schemas
 from app.core.config import settings
@@ -25,6 +28,52 @@ async def test_token_user_id(client, test_users):
     )
     payload = jwt.decode(res.json()["access_token"], settings.secret_key, settings.algorithm)
     assert int(payload["sub"]) == test_users[0].id
+
+
+async def _login(client, user: models.User) -> schemas.Token:
+    res = await client.post(
+        constants.LOGIN_URL,
+        data={"username": user.email, "password": constants.TEST_PASSWORD},
+    )
+    assert res.status_code == 200
+    return schemas.Token(**res.json())
+
+
+async def _stored_refresh_tokens(session, user: models.User) -> list[models.RefreshToken]:
+    res = await session.scalars(
+        select(models.RefreshToken).where(models.RefreshToken.user_id == user.id)
+    )
+    return list(res)
+
+
+async def test_login_returns_refresh_token(client, test_users):
+    token = await _login(client, test_users[0])
+
+    assert token.refresh_token
+    assert token.refresh_token != token.access_token
+
+
+async def test_login_stores_only_refresh_token_hash(client, session, test_users):
+    token = await _login(client, test_users[0])
+
+    stored = await _stored_refresh_tokens(session, test_users[0])
+    assert [t.token_hash for t in stored] == [
+        hashlib.sha256(token.refresh_token.encode()).hexdigest()
+    ]
+    raw_matches = await session.scalar(
+        select(func.count())
+        .select_from(models.RefreshToken)
+        .where(models.RefreshToken.token_hash == token.refresh_token)
+    )
+    assert raw_matches == 0
+
+
+async def test_login_refresh_token_expires_after_configured_days(client, session, test_users):
+    await _login(client, test_users[0])
+
+    [stored] = await _stored_refresh_tokens(session, test_users[0])
+    expected = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
+    assert abs(stored.expires_at - expected) < timedelta(minutes=1)
 
 
 def test_access_token_sub_is_string_user_id():

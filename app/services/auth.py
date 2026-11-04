@@ -1,13 +1,31 @@
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import models
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.config import settings
+from app.core.security import (
+    create_access_token,
+    generate_refresh_token,
+    hash_password,
+    hash_refresh_token,
+    verify_password,
+)
 from app.exceptions import AuthenticationError, ConflictError, DomainValidationError
 
 # "me" would be shadowed by GET /users/me, so nobody could open that profile.
 RESERVED_USERNAMES = frozenset({"me"})
+
+
+@dataclass(frozen=True)
+class TokenPair:
+    access_token: str
+    refresh_token: str
+
 
 _UNIQUE_TO_ERROR = {
     "uq_users_email": ("email_taken", "Email already registered"),
@@ -41,7 +59,7 @@ async def register_user(
     return user
 
 
-async def login(session: AsyncSession, *, email: str, password: str) -> str:
+async def login(session: AsyncSession, *, email: str, password: str) -> TokenPair:
     user = await session.scalar(
         select(models.User).where(
             models.User.email == email.lower(), models.User.deleted_at.is_(None)
@@ -49,4 +67,18 @@ async def login(session: AsyncSession, *, email: str, password: str) -> str:
     )
     if user is None or not verify_password(password, user.password_hash):
         raise AuthenticationError("invalid_credentials", "Invalid credentials")
-    return create_access_token(user.id)
+    refresh_token = _issue_refresh_token(session, user_id=user.id, family_id=uuid.uuid4())
+    return TokenPair(access_token=create_access_token(user.id), refresh_token=refresh_token)
+
+
+def _issue_refresh_token(session: AsyncSession, *, user_id: int, family_id: uuid.UUID) -> str:
+    raw = generate_refresh_token()
+    session.add(
+        models.RefreshToken(
+            user_id=user_id,
+            token_hash=hash_refresh_token(raw),
+            family_id=family_id,
+            expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days),
+        )
+    )
+    return raw

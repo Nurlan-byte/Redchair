@@ -8,15 +8,15 @@ from ..services import auth as auth_service
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/login")
+@router.post("/login", response_model=schemas.Token)
 async def login(
     db: DbSession,
     user_credentials: OAuth2PasswordRequestForm = Depends(),
 ):
-    access_token = await auth_service.login(
+    pair = await auth_service.login(
         db, email=user_credentials.username, password=user_credentials.password
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return schemas.Token(access_token=pair.access_token, refresh_token=pair.refresh_token)
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.UserPrivate)
