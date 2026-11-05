@@ -75,6 +75,10 @@ class UserCreate(BaseModel):
         return self
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 class Token(BaseModel):
     access_token: str
     refresh_token: str

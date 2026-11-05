@@ -6,6 +6,7 @@ TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
 URL = f"{settings.api_v1_prefix}"
 LOGIN_URL = f"{URL}/auth/login"
 REGISTER_URL = f"{URL}/auth/register"
+REFRESH_URL = f"{URL}/auth/refresh"
 
 
 def user_payload(**overrides):

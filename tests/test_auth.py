@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app import models, schemas
 from app.core.config import settings
@@ -41,9 +41,17 @@ async def _login(client, user: models.User) -> schemas.Token:
 
 async def _stored_refresh_tokens(session, user: models.User) -> list[models.RefreshToken]:
     res = await session.scalars(
-        select(models.RefreshToken).where(models.RefreshToken.user_id == user.id)
+        select(models.RefreshToken)
+        .where(models.RefreshToken.user_id == user.id)
+        .order_by(models.RefreshToken.id)
+        # The request ran in this same session; reload what its UPDATE changed.
+        .execution_options(populate_existing=True)
     )
     return list(res)
+
+
+async def _refresh(client, refresh_token: str):
+    return await client.post(constants.REFRESH_URL, json={"refresh_token": refresh_token})
 
 
 async def test_login_returns_refresh_token(client, test_users):
@@ -74,6 +82,55 @@ async def test_login_refresh_token_expires_after_configured_days(client, session
     [stored] = await _stored_refresh_tokens(session, test_users[0])
     expected = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
     assert abs(stored.expires_at - expected) < timedelta(minutes=1)
+
+
+async def test_refresh_rotates_token(client, session, test_users):
+    old = await _login(client, test_users[0])
+
+    res = await _refresh(client, old.refresh_token)
+
+    assert res.status_code == 200
+    new = schemas.Token(**res.json())
+    assert new.refresh_token != old.refresh_token
+    old_row, new_row = await _stored_refresh_tokens(session, test_users[0])
+    assert old_row.token_hash == hashlib.sha256(old.refresh_token.encode()).hexdigest()
+    assert old_row.revoked_at is not None
+    assert new_row.revoked_at is None
+    assert new_row.family_id == old_row.family_id
+
+
+async def test_refreshed_access_token_works(client, test_users):
+    old = await _login(client, test_users[0])
+    new = schemas.Token(**(await _refresh(client, old.refresh_token)).json())
+
+    res = await client.get(
+        f"{constants.URL}/users/me", headers={"Authorization": f"Bearer {new.access_token}"}
+    )
+
+    assert res.status_code == 200
+    assert res.json()["id"] == test_users[0].id
+
+
+async def test_expired_refresh_returns_401(client, session, test_users):
+    token = await _login(client, test_users[0])
+    # now() is frozen at the start of the test transaction, so move the data instead.
+    await session.execute(
+        update(models.RefreshToken)
+        .where(models.RefreshToken.user_id == test_users[0].id)
+        .values(expires_at=datetime.now(UTC) - timedelta(days=1))
+    )
+
+    res = await _refresh(client, token.refresh_token)
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_refresh_token"
+
+
+async def test_refresh_with_unknown_token_returns_401(client, test_users):
+    res = await _refresh(client, "not-a-refresh-token")
+
+    assert res.status_code == 401
+    assert res.json()["code"] == "invalid_refresh_token"
 
 
 def test_access_token_sub_is_string_user_id():

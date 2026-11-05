@@ -19,6 +19,12 @@ async def login(
     return schemas.Token(access_token=pair.access_token, refresh_token=pair.refresh_token)
 
 
+@router.post("/refresh", response_model=schemas.Token)
+async def refresh(body: schemas.RefreshRequest, db: DbSession):
+    pair = await auth_service.refresh(db, refresh_token=body.refresh_token)
+    return schemas.Token(access_token=pair.access_token, refresh_token=pair.refresh_token)
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.UserPrivate)
 async def create_user(new_user: schemas.UserCreate, db: DbSession):
     return await auth_service.register_user(

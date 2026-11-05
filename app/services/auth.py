@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,6 +69,28 @@ async def login(session: AsyncSession, *, email: str, password: str) -> TokenPai
         raise AuthenticationError("invalid_credentials", "Invalid credentials")
     refresh_token = _issue_refresh_token(session, user_id=user.id, family_id=uuid.uuid4())
     return TokenPair(access_token=create_access_token(user.id), refresh_token=refresh_token)
+
+
+async def refresh(session: AsyncSession, *, refresh_token: str) -> TokenPair:
+    # One conditional UPDATE: a concurrent request with the same token waits on the row lock
+    # and then no longer matches revoked_at IS NULL.
+    row = (
+        await session.execute(
+            update(models.RefreshToken)
+            .where(
+                models.RefreshToken.token_hash == hash_refresh_token(refresh_token),
+                models.RefreshToken.revoked_at.is_(None),
+                models.RefreshToken.expires_at > func.now(),
+            )
+            .values(revoked_at=func.now())
+            .returning(models.RefreshToken.user_id, models.RefreshToken.family_id)
+        )
+    ).first()
+    if row is None:
+        raise AuthenticationError("invalid_refresh_token", "Invalid refresh token")
+
+    new_token = _issue_refresh_token(session, user_id=row.user_id, family_id=row.family_id)
+    return TokenPair(access_token=create_access_token(row.user_id), refresh_token=new_token)
 
 
 def _issue_refresh_token(session: AsyncSession, *, user_id: int, family_id: uuid.UUID) -> str:
