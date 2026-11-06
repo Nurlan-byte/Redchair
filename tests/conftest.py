@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from alembic import command
 from app import models
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import open_session
 from app.core.security import create_access_token
 from app.main import app
 from tests import constants
@@ -50,15 +50,10 @@ async def session(engine):
 
 @pytest_asyncio.fixture
 async def client(session):
-    async def override_get_db():
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    async def override_open_session():
+        yield session
 
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[open_session] = override_open_session
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()

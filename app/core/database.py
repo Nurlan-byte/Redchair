@@ -25,14 +25,18 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-async def get_db() -> AsyncIterator[AsyncSession]:
+async def open_session() -> AsyncIterator[AsyncSession]:
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+        yield session
+
+
+async def get_db(session: AsyncSession = Depends(open_session)) -> AsyncIterator[AsyncSession]:
+    try:
+        yield session
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
 
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
