@@ -8,6 +8,7 @@ from sqlalchemy import func, select, update
 from app import models, schemas
 from app.core.config import settings
 from app.core.security import MAX_PASSWORD_BYTES, create_access_token
+from app.exceptions import ConflictError
 from tests import constants
 
 
@@ -131,6 +132,33 @@ async def test_refresh_with_unknown_token_returns_401(client, test_users):
 
     assert res.status_code == 401
     assert res.json()["code"] == "invalid_refresh_token"
+
+
+async def test_reused_refresh_token_revokes_family(client, session, test_users):
+    first = await _login(client, test_users[0])
+    second = schemas.Token(**(await _refresh(client, first.refresh_token)).json())
+
+    reuse = await _refresh(client, first.refresh_token)
+
+    assert reuse.status_code == 401
+    assert reuse.json()["code"] == "refresh_token_reused"
+    assert (await _refresh(client, second.refresh_token)).status_code == 401
+    stored = await _stored_refresh_tokens(session, test_users[0])
+    assert all(t.revoked_at is not None for t in stored)
+
+
+async def test_app_error_still_rolls_back_the_request(client, session, monkeypatch):
+    def conflict(*args, **kwargs):
+        raise ConflictError("diary_conflict")
+
+    monkeypatch.setattr("app.services.auth.models.Diary", conflict)
+    res = await client.post(constants.REGISTER_URL, json=constants.user_payload())
+
+    assert res.status_code == 409
+    user = await session.scalar(
+        select(models.User).where(models.User.username == constants.user_payload()["username"])
+    )
+    assert user is None
 
 
 def test_access_token_sub_is_string_user_id():

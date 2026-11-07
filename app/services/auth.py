@@ -15,7 +15,12 @@ from app.core.security import (
     hash_refresh_token,
     verify_password,
 )
-from app.exceptions import AuthenticationError, ConflictError, DomainValidationError
+from app.exceptions import (
+    AuthenticationError,
+    ConflictError,
+    DomainValidationError,
+    RefreshTokenReusedError,
+)
 
 # "me" would be shadowed by GET /users/me, so nobody could open that profile.
 RESERVED_USERNAMES = frozenset({"me"})
@@ -74,11 +79,12 @@ async def login(session: AsyncSession, *, email: str, password: str) -> TokenPai
 async def refresh(session: AsyncSession, *, refresh_token: str) -> TokenPair:
     # One conditional UPDATE: a concurrent request with the same token waits on the row lock
     # and then no longer matches revoked_at IS NULL.
+    token_hash = hash_refresh_token(refresh_token)
     row = (
         await session.execute(
             update(models.RefreshToken)
             .where(
-                models.RefreshToken.token_hash == hash_refresh_token(refresh_token),
+                models.RefreshToken.token_hash == token_hash,
                 models.RefreshToken.revoked_at.is_(None),
                 models.RefreshToken.expires_at > func.now(),
             )
@@ -87,10 +93,31 @@ async def refresh(session: AsyncSession, *, refresh_token: str) -> TokenPair:
         )
     ).first()
     if row is None:
+        # A revoked token coming back means it leaked: cut off whoever holds the newer one too.
+        reused_family = await session.scalar(
+            select(models.RefreshToken.family_id).where(
+                models.RefreshToken.token_hash == token_hash,
+                models.RefreshToken.revoked_at.is_not(None),
+            )
+        )
+        if reused_family is not None:
+            await _revoke_family(session, family_id=reused_family)
+            raise RefreshTokenReusedError("refresh_token_reused", "Refresh token reuse detected")
         raise AuthenticationError("invalid_refresh_token", "Invalid refresh token")
 
     new_token = _issue_refresh_token(session, user_id=row.user_id, family_id=row.family_id)
     return TokenPair(access_token=create_access_token(row.user_id), refresh_token=new_token)
+
+
+async def _revoke_family(session: AsyncSession, *, family_id: uuid.UUID) -> None:
+    await session.execute(
+        update(models.RefreshToken)
+        .where(
+            models.RefreshToken.family_id == family_id,
+            models.RefreshToken.revoked_at.is_(None),
+        )
+        .values(revoked_at=func.now())
+    )
 
 
 def _issue_refresh_token(session: AsyncSession, *, user_id: int, family_id: uuid.UUID) -> str:

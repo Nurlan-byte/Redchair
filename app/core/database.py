@@ -6,6 +6,8 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
+from app.exceptions import AppError
+
 from .config import settings
 
 engine = create_async_engine(settings.sqlalchemy_url, pool_pre_ping=True, pool_recycle=1800)
@@ -34,6 +36,9 @@ async def get_db(session: AsyncSession = Depends(open_session)) -> AsyncIterator
     try:
         yield session
         await session.commit()
+    except AppError as e:
+        await (session.commit() if e.commit_before_raise else session.rollback())
+        raise
     except Exception:
         await session.rollback()
         raise
