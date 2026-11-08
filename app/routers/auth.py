@@ -25,6 +25,12 @@ async def refresh(body: schemas.RefreshRequest, db: DbSession):
     return schemas.Token(access_token=pair.access_token, refresh_token=pair.refresh_token)
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(body: schemas.RefreshRequest, db: DbSession) -> None:
+    # Same answer for unknown, revoked and live tokens: logout reveals nothing.
+    await auth_service.logout(db, refresh_token=body.refresh_token)
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=schemas.UserPrivate)
 async def create_user(new_user: schemas.UserCreate, db: DbSession):
     return await auth_service.register_user(

@@ -109,6 +109,16 @@ async def refresh(session: AsyncSession, *, refresh_token: str) -> TokenPair:
     return TokenPair(access_token=create_access_token(row.user_id), refresh_token=new_token)
 
 
+async def logout(session: AsyncSession, *, refresh_token: str) -> None:
+    family_id = await session.scalar(
+        select(models.RefreshToken.family_id).where(
+            models.RefreshToken.token_hash == hash_refresh_token(refresh_token)
+        )
+    )
+    if family_id is not None:
+        await _revoke_family(session, family_id=family_id)
+
+
 async def _revoke_family(session: AsyncSession, *, family_id: uuid.UUID) -> None:
     await session.execute(
         update(models.RefreshToken)

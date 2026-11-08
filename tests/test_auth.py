@@ -147,6 +147,45 @@ async def test_reused_refresh_token_revokes_family(client, session, test_users):
     assert all(t.revoked_at is not None for t in stored)
 
 
+async def _logout(client, refresh_token: str):
+    return await client.post(constants.LOGOUT_URL, json={"refresh_token": refresh_token})
+
+
+async def test_logout_revokes_family(client, session, test_users):
+    first = await _login(client, test_users[0])
+    second = schemas.Token(**(await _refresh(client, first.refresh_token)).json())
+
+    res = await _logout(client, second.refresh_token)
+
+    assert res.status_code == 204
+    stored = await _stored_refresh_tokens(session, test_users[0])
+    assert len(stored) == 2
+    assert all(t.revoked_at is not None for t in stored)
+    assert (await _refresh(client, second.refresh_token)).status_code == 401
+
+
+async def test_logout_twice_returns_204(client, test_users):
+    token = await _login(client, test_users[0])
+
+    first = await _logout(client, token.refresh_token)
+    second = await _logout(client, token.refresh_token)
+
+    assert (first.status_code, second.status_code) == (204, 204)
+
+
+async def test_access_token_survives_logout(client, test_users):
+    # Known trade-off: access tokens are not checked against refresh families, so one stays
+    # valid until it expires. Checking would cost a second query on every request.
+    token = await _login(client, test_users[0])
+    await _logout(client, token.refresh_token)
+
+    res = await client.get(
+        f"{constants.URL}/users/me", headers={"Authorization": f"Bearer {token.access_token}"}
+    )
+
+    assert res.status_code == 200
+
+
 async def test_app_error_still_rolls_back_the_request(client, session, monkeypatch):
     def conflict(*args, **kwargs):
         raise ConflictError("diary_conflict")
