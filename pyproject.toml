@@ -58,4 +58,5 @@ testpaths = ["tests"]
 env = [
     "DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/redchair_test",
     "SECRET_KEY=test-secret-key-that-is-at-least-32-bytes",
+    "BCRYPT_ROUNDS=4",
 ]

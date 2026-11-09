@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import secrets
 import uuid
@@ -13,15 +14,21 @@ MAX_PASSWORD_BYTES = 72
 REFRESH_TOKEN_BYTES = 32
 
 
-def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+def hash_password_sync(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(settings.bcrypt_rounds)).decode()
 
 
-def verify_password(password: str, password_hash: str) -> bool:
+# bcrypt is pure CPU work that releases the GIL: in a thread it neither blocks the event loop
+# nor waits for other checks.
+async def hash_password(password: str) -> str:
+    return await asyncio.to_thread(hash_password_sync, password)
+
+
+async def verify_password(password: str, password_hash: str) -> bool:
     raw = password.encode()
     if len(raw) > MAX_PASSWORD_BYTES:
         return False
-    return bcrypt.checkpw(raw, password_hash.encode())
+    return await asyncio.to_thread(bcrypt.checkpw, raw, password_hash.encode())
 
 
 def create_access_token(user_id: int) -> str:
