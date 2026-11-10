@@ -7,8 +7,9 @@ from sqlalchemy import func, select, update
 
 from app import models, schemas
 from app.core.config import settings
-from app.core.security import MAX_PASSWORD_BYTES, create_access_token
+from app.core.security import DUMMY_PASSWORD_HASH, MAX_PASSWORD_BYTES, create_access_token
 from app.exceptions import ConflictError
+from app.services import auth as auth_service
 from tests import constants
 
 
@@ -250,6 +251,24 @@ async def test_token_of_deleted_user_returns_401(client, deleted_user):
 
     assert res.status_code == 401
     assert res.json()["code"] == "invalid_token"
+
+
+async def test_login_with_unknown_email_still_verifies_password(client, test_users, monkeypatch):
+    checked_hashes = []
+    real_verify = auth_service.verify_password
+
+    async def spy(password, password_hash):
+        checked_hashes.append(password_hash)
+        return await real_verify(password, password_hash)
+
+    monkeypatch.setattr(auth_service, "verify_password", spy)
+    res = await client.post(
+        constants.LOGIN_URL,
+        data={"username": "nobody@gmail.com", "password": constants.TEST_PASSWORD},
+    )
+
+    assert res.status_code == 401
+    assert checked_hashes == [DUMMY_PASSWORD_HASH]
 
 
 async def test_register_returns_created_user(client):

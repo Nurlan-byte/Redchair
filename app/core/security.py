@@ -24,6 +24,10 @@ async def hash_password(password: str) -> str:
     return await asyncio.to_thread(hash_password_sync, password)
 
 
+# Login checks unknown emails against this, so they cost as much bcrypt time as real ones.
+DUMMY_PASSWORD_HASH = hash_password_sync(secrets.token_urlsafe(16))
+
+
 async def verify_password(password: str, password_hash: str) -> bool:
     raw = password.encode()
     if len(raw) > MAX_PASSWORD_BYTES:

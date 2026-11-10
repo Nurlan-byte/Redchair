@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import models
 from app.core.config import settings
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     create_access_token,
     generate_refresh_token,
     hash_password,
@@ -70,7 +71,9 @@ async def login(session: AsyncSession, *, email: str, password: str) -> TokenPai
             models.User.email == email.lower(), models.User.deleted_at.is_(None)
         )
     )
-    if user is None or not await verify_password(password, user.password_hash):
+    password_hash = user.password_hash if user is not None else DUMMY_PASSWORD_HASH
+    password_ok = await verify_password(password, password_hash)
+    if user is None or not password_ok:
         raise AuthenticationError("invalid_credentials", "Invalid credentials")
     refresh_token = _issue_refresh_token(session, user_id=user.id, family_id=uuid.uuid4())
     return TokenPair(access_token=create_access_token(user.id), refresh_token=refresh_token)
