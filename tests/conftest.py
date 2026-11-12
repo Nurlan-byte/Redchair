@@ -6,7 +6,7 @@ import pytest_asyncio
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine.url import make_url
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from alembic import command
 from app import models
@@ -54,6 +54,21 @@ async def client(session):
         yield session
 
     app.dependency_overrides[open_session] = override_open_session
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def committing_client(engine):
+    """Every request gets its own session and really commits; the test must clean up."""
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def fresh_session():
+        async with sessions() as db:
+            yield db
+
+    app.dependency_overrides[open_session] = fresh_session
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
