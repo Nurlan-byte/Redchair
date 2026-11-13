@@ -78,3 +78,52 @@ async def test_deleting_user_cascades_to_refresh_tokens(session, test_users):
         .where(models.RefreshToken.user_id == user_id)
     )
     assert remaining == 0
+
+
+async def _goal(session, user: models.User) -> models.Goal:
+    diary = models.Diary(user_id=user.id)
+    session.add(diary)
+    await session.flush()
+    goal = models.Goal(diary_id=diary.id, title="Run every day")
+    session.add(goal)
+    await session.flush()
+    return goal
+
+
+async def test_goal_statistics_goal_id_unique_constraint(session, test_users):
+    goal = await _goal(session, test_users[0])
+    session.add(models.GoalStatistic(goal_id=goal.id))
+    await session.flush()
+
+    with pytest.raises(IntegrityError) as exc:
+        async with session.begin_nested():
+            session.add(models.GoalStatistic(goal_id=goal.id))
+            await session.flush()
+
+    assert _constraint_name(exc.value) == "uq_goal_statistics_goal_id"
+
+
+@pytest.mark.parametrize(
+    ("current_streak", "longest_streak", "constraint"),
+    [
+        (-1, 0, "ck_goal_statistics_current_streak_non_negative"),
+        (3, 2, "ck_goal_statistics_longest_streak_gte_current"),
+    ],
+)
+async def test_goal_statistics_check_constraints(
+    session, test_users, current_streak, longest_streak, constraint
+):
+    goal = await _goal(session, test_users[0])
+
+    with pytest.raises(IntegrityError) as exc:
+        async with session.begin_nested():
+            session.add(
+                models.GoalStatistic(
+                    goal_id=goal.id,
+                    current_streak=current_streak,
+                    longest_streak=longest_streak,
+                )
+            )
+            await session.flush()
+
+    assert _constraint_name(exc.value) == constraint
