@@ -97,6 +97,9 @@ async def test_users(session):
         for u in USERNAMES
     ]
     session.add_all(users)
+    await session.flush()
+    # Registration always creates a diary; fixtures keep the same invariant.
+    session.add_all(models.Diary(user_id=user.id) for user in users)
     await session.commit()
 
     return users

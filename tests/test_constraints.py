@@ -81,10 +81,8 @@ async def test_deleting_user_cascades_to_refresh_tokens(session, test_users):
 
 
 async def _goal(session, user: models.User) -> models.Goal:
-    diary = models.Diary(user_id=user.id)
-    session.add(diary)
-    await session.flush()
-    goal = models.Goal(diary_id=diary.id, title="Run every day")
+    diary_id = await session.scalar(select(models.Diary.id).where(models.Diary.user_id == user.id))
+    goal = models.Goal(diary_id=diary_id, title="Run every day")
     session.add(goal)
     await session.flush()
     return goal

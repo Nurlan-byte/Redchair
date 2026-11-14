@@ -8,6 +8,7 @@ LOGIN_URL = f"{URL}/auth/login"
 REGISTER_URL = f"{URL}/auth/register"
 REFRESH_URL = f"{URL}/auth/refresh"
 LOGOUT_URL = f"{URL}/auth/logout"
+GOALS_URL = f"{URL}/goals"
 
 
 def user_payload(**overrides):
@@ -16,4 +17,12 @@ def user_payload(**overrides):
         "email": "ahmed@gmail.com",
         "password": TEST_PASSWORD,
         "confirm_password": TEST_PASSWORD,
+    } | overrides
+
+
+def goal_payload(**overrides):
+    return {
+        "title": "Read 20 pages a day",
+        "description": "Any book counts",
+        "visibility": "PRIVATE",
     } | overrides

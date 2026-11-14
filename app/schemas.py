@@ -1,10 +1,18 @@
-from datetime import datetime
-from typing import Literal
+from datetime import date, datetime
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 from app.core.security import MAX_PASSWORD_BYTES
+from app.models import Visibility
 
 # Unknown names raise ZoneInfoNotFoundError; empty or path-like ones raise ValueError.
 ZONEINFO_ERRORS = (ZoneInfoNotFoundError, ValueError)
@@ -83,3 +91,32 @@ class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: Literal["bearer"] = "bearer"
+
+
+GoalTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
+class GoalCreate(BaseModel):
+    title: GoalTitle
+    description: str | None = None
+    visibility: Visibility = Visibility.PUBLIC
+
+
+class GoalStatisticOut(BaseModel):
+    current_streak: int
+    longest_streak: int
+    last_entry_date: date | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GoalOut(BaseModel):
+    id: int
+    title: str
+    description: str | None
+    visibility: Visibility
+    created_at: datetime
+    updated_at: datetime
+    statistic: GoalStatisticOut
+
+    model_config = ConfigDict(from_attributes=True)
