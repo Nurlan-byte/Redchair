@@ -5,6 +5,7 @@ import pytest
 import pytest_asyncio
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -34,6 +35,20 @@ async def engine():
 
     yield eng
     await eng.dispose()
+
+
+@pytest.fixture
+def query_counter(engine):
+    """Collects data statements only: the savepoint fixture adds SAVEPOINT/RELEASE noise."""
+    statements: list[str] = []
+
+    def collect(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().split(None, 1)[0].upper() in {"SELECT", "INSERT", "UPDATE", "DELETE"}:
+            statements.append(statement)
+
+    event.listen(engine.sync_engine, "before_cursor_execute", collect)
+    yield statements
+    event.remove(engine.sync_engine, "before_cursor_execute", collect)
 
 
 @pytest_asyncio.fixture

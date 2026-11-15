@@ -65,3 +65,63 @@ async def test_create_goal_requires_auth(client):
     res = await client.post(constants.GOALS_URL, json=constants.goal_payload())
 
     assert res.status_code == 401
+
+
+async def _add_goals(session, user: models.User, count: int) -> list[models.Goal]:
+    diary_id = await session.scalar(select(models.Diary.id).where(models.Diary.user_id == user.id))
+    goals = [
+        models.Goal(diary_id=diary_id, title=f"Goal {i}", statistic=models.GoalStatistic())
+        for i in range(count)
+    ]
+    session.add_all(goals)
+    await session.flush()
+    return goals
+
+
+async def test_list_goals_returns_own_newest_first(authorized_client, session, test_users):
+    own = await _add_goals(session, test_users[0], 3)
+    await _add_goals(session, test_users[1], 2)
+    own[1].deleted_at = func.now()
+    await session.flush()
+
+    res = await authorized_client.get(constants.GOALS_URL)
+
+    assert res.status_code == 200
+    page = schemas.PaginatedResponse[schemas.GoalOut](**res.json())
+    assert [goal.id for goal in page.items] == [own[2].id, own[0].id]
+    assert page.has_more is False
+
+
+async def test_get_own_goal(authorized_client, session, test_users):
+    [goal] = await _add_goals(session, test_users[0], 1)
+
+    res = await authorized_client.get(f"{constants.GOALS_URL}/{goal.id}")
+
+    assert res.status_code == 200
+    assert schemas.GoalOut(**res.json()).title == goal.title
+
+
+async def test_foreign_goal_looks_missing(authorized_client, session, test_users):
+    [foreign] = await _add_goals(session, test_users[1], 1)
+
+    res = await authorized_client.get(f"{constants.GOALS_URL}/{foreign.id}")
+    missing = await authorized_client.get(f"{constants.GOALS_URL}/{foreign.id + 1}")
+
+    assert res.status_code == missing.status_code == 404
+    assert res.json()["code"] == missing.json()["code"] == "goal_not_found"
+
+
+async def test_list_goals_query_count_does_not_grow(
+    authorized_client, session, test_users, query_counter
+):
+    await _add_goals(session, test_users[0], 1)
+    query_counter.clear()
+    await authorized_client.get(constants.GOALS_URL)
+    one_goal = len(query_counter)
+
+    await _add_goals(session, test_users[0], 19)
+    query_counter.clear()
+    res = await authorized_client.get(constants.GOALS_URL)
+
+    assert len(res.json()["items"]) == 20
+    assert 0 < len(query_counter) == one_goal
