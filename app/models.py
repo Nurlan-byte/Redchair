@@ -83,6 +83,9 @@ class RefreshToken(Base):
 class Goal(Base):
     __tablename__ = "goals"
     __table_args__ = (CheckConstraint(VISIBILITY_CHECK, name="visibility"),)
+    # Fetch updated_at via RETURNING on UPDATE too; reading an expired column
+    # in async code is a lazy load and fails with MissingGreenlet.
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012 - read by SQLAlchemy, never mutated
 
     id: Mapped[int] = mapped_column(primary_key=True)
     diary_id: Mapped[int] = mapped_column(

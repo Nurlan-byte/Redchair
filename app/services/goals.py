@@ -1,11 +1,20 @@
+import enum
 from collections.abc import Sequence
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app import models
 from app.exceptions import NotFoundError
+
+
+class _Unset(enum.Enum):
+    UNSET = enum.auto()
+
+
+# Tells "not passed" apart from None, which clears a nullable field.
+UNSET = _Unset.UNSET
 
 
 def _own_goals(owner_id: int) -> Select[tuple[models.Goal]]:
@@ -60,3 +69,29 @@ async def get_goal(session: AsyncSession, *, owner_id: int, goal_id: int) -> mod
     if goal is None:
         raise NotFoundError("goal_not_found", f"Goal with id: {goal_id} does not exist")
     return goal
+
+
+async def update_goal(
+    session: AsyncSession,
+    *,
+    owner_id: int,
+    goal_id: int,
+    title: str | _Unset = UNSET,
+    description: str | _Unset | None = UNSET,
+    visibility: models.Visibility | _Unset = UNSET,
+) -> models.Goal:
+    goal = await get_goal(session, owner_id=owner_id, goal_id=goal_id)
+    if title is not UNSET:
+        goal.title = title
+    if description is not UNSET:
+        goal.description = description
+    if visibility is not UNSET:
+        goal.visibility = visibility
+    await session.flush()
+    return goal
+
+
+async def delete_goal(session: AsyncSession, *, owner_id: int, goal_id: int) -> None:
+    goal = await get_goal(session, owner_id=owner_id, goal_id=goal_id)
+    goal.deleted_at = func.now()
+    await session.flush()

@@ -102,6 +102,20 @@ class GoalCreate(BaseModel):
     visibility: Visibility = Visibility.PUBLIC
 
 
+class GoalUpdate(BaseModel):
+    title: GoalTitle | None = None
+    description: str | None = None
+    visibility: Visibility | None = None
+
+    # Defaults are not validated, so this fires only for an explicit null.
+    @field_validator("title", "visibility")
+    @classmethod
+    def reject_null(cls, value):
+        if value is None:
+            raise ValueError("Field cannot be null")
+        return value
+
+
 class GoalStatisticOut(BaseModel):
     current_streak: int
     longest_streak: int

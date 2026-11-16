@@ -42,3 +42,27 @@ async def get_goal(
     current_user: models.User = Depends(oauth2.get_current_user),
 ):
     return await goals_service.get_goal(db, owner_id=current_user.id, goal_id=goal_id)
+
+
+@router.patch("/{goal_id}", response_model=schemas.GoalOut)
+async def update_goal(
+    goal_id: int,
+    changes: schemas.GoalUpdate,
+    db: DbSession,
+    current_user: models.User = Depends(oauth2.get_current_user),
+):
+    return await goals_service.update_goal(
+        db,
+        owner_id=current_user.id,
+        goal_id=goal_id,
+        **changes.model_dump(exclude_unset=True),
+    )
+
+
+@router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_goal(
+    goal_id: int,
+    db: DbSession,
+    current_user: models.User = Depends(oauth2.get_current_user),
+) -> None:
+    await goals_service.delete_goal(db, owner_id=current_user.id, goal_id=goal_id)
