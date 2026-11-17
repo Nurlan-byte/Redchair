@@ -67,20 +67,11 @@ async def test_create_goal_requires_auth(client):
     assert res.status_code == 401
 
 
-async def _add_goals(session, user: models.User, count: int) -> list[models.Goal]:
-    diary_id = await session.scalar(select(models.Diary.id).where(models.Diary.user_id == user.id))
-    goals = [
-        models.Goal(diary_id=diary_id, title=f"Goal {i}", statistic=models.GoalStatistic())
-        for i in range(count)
-    ]
-    session.add_all(goals)
-    await session.flush()
-    return goals
-
-
-async def test_list_goals_returns_own_newest_first(authorized_client, session, test_users):
-    own = await _add_goals(session, test_users[0], 3)
-    await _add_goals(session, test_users[1], 2)
+async def test_list_goals_returns_own_newest_first(
+    authorized_client, session, make_goals, test_users
+):
+    own = await make_goals(test_users[0], 3)
+    await make_goals(test_users[1], 2)
     own[1].deleted_at = func.now()
     await session.flush()
 
@@ -92,8 +83,8 @@ async def test_list_goals_returns_own_newest_first(authorized_client, session, t
     assert page.has_more is False
 
 
-async def test_get_own_goal(authorized_client, session, test_users):
-    [goal] = await _add_goals(session, test_users[0], 1)
+async def test_get_own_goal(authorized_client, make_goals, test_users):
+    [goal] = await make_goals(test_users[0], 1)
 
     res = await authorized_client.get(f"{constants.GOALS_URL}/{goal.id}")
 
@@ -101,8 +92,8 @@ async def test_get_own_goal(authorized_client, session, test_users):
     assert schemas.GoalOut(**res.json()).title == goal.title
 
 
-async def test_foreign_goal_looks_missing(authorized_client, session, test_users):
-    [foreign] = await _add_goals(session, test_users[1], 1)
+async def test_foreign_goal_looks_missing(authorized_client, make_goals, test_users):
+    [foreign] = await make_goals(test_users[1], 1)
 
     res = await authorized_client.get(f"{constants.GOALS_URL}/{foreign.id}")
     missing = await authorized_client.get(f"{constants.GOALS_URL}/{foreign.id + 1}")
@@ -112,14 +103,14 @@ async def test_foreign_goal_looks_missing(authorized_client, session, test_users
 
 
 async def test_list_goals_query_count_does_not_grow(
-    authorized_client, session, test_users, query_counter
+    authorized_client, make_goals, test_users, query_counter
 ):
-    await _add_goals(session, test_users[0], 1)
+    await make_goals(test_users[0], 1)
     query_counter.clear()
     await authorized_client.get(constants.GOALS_URL)
     one_goal = len(query_counter)
 
-    await _add_goals(session, test_users[0], 19)
+    await make_goals(test_users[0], 19)
     query_counter.clear()
     res = await authorized_client.get(constants.GOALS_URL)
 
@@ -127,8 +118,8 @@ async def test_list_goals_query_count_does_not_grow(
     assert 0 < len(query_counter) == one_goal
 
 
-async def test_update_goal_title(authorized_client, session, test_users):
-    [goal] = await _add_goals(session, test_users[0], 1)
+async def test_update_goal_title(authorized_client, make_goals, test_users):
+    [goal] = await make_goals(test_users[0], 1)
 
     res = await authorized_client.patch(
         f"{constants.GOALS_URL}/{goal.id}", json={"title": "Read 30 pages a day"}
@@ -138,8 +129,10 @@ async def test_update_goal_title(authorized_client, session, test_users):
     assert schemas.GoalOut(**res.json()).title == "Read 30 pages a day"
 
 
-async def test_update_goal_clears_description_with_null(authorized_client, session, test_users):
-    [goal] = await _add_goals(session, test_users[0], 1)
+async def test_update_goal_clears_description_with_null(
+    authorized_client, session, make_goals, test_users
+):
+    [goal] = await make_goals(test_users[0], 1)
     goal.description = "Any book counts"
     await session.flush()
 
@@ -151,8 +144,8 @@ async def test_update_goal_clears_description_with_null(authorized_client, sessi
     assert res.json()["description"] is None
 
 
-async def test_update_goal_keeps_omitted_fields(authorized_client, session, test_users):
-    [goal] = await _add_goals(session, test_users[0], 1)
+async def test_update_goal_keeps_omitted_fields(authorized_client, session, make_goals, test_users):
+    [goal] = await make_goals(test_users[0], 1)
     goal.description = "Any book counts"
     await session.flush()
 
@@ -165,8 +158,8 @@ async def test_update_goal_keeps_omitted_fields(authorized_client, session, test
     assert (updated.title, updated.description) == (goal.title, goal.description)
 
 
-async def test_update_foreign_goal_returns_404(authorized_client, session, test_users):
-    [foreign] = await _add_goals(session, test_users[1], 1)
+async def test_update_foreign_goal_returns_404(authorized_client, make_goals, test_users):
+    [foreign] = await make_goals(test_users[1], 1)
 
     res = await authorized_client.patch(
         f"{constants.GOALS_URL}/{foreign.id}", json={"title": "Not mine"}
@@ -176,8 +169,8 @@ async def test_update_foreign_goal_returns_404(authorized_client, session, test_
     assert foreign.title == "Goal 0"
 
 
-async def test_delete_goal(authorized_client, session, test_users):
-    [goal] = await _add_goals(session, test_users[0], 1)
+async def test_delete_goal(authorized_client, make_goals, test_users):
+    [goal] = await make_goals(test_users[0], 1)
 
     res = await authorized_client.delete(f"{constants.GOALS_URL}/{goal.id}")
     after = await authorized_client.get(f"{constants.GOALS_URL}/{goal.id}")
@@ -186,8 +179,8 @@ async def test_delete_goal(authorized_client, session, test_users):
     assert after.status_code == 404
 
 
-async def test_deleted_goal_not_listed(authorized_client, session, test_users):
-    kept, deleted = await _add_goals(session, test_users[0], 2)
+async def test_deleted_goal_not_listed(authorized_client, make_goals, test_users):
+    kept, deleted = await make_goals(test_users[0], 2)
     await authorized_client.delete(f"{constants.GOALS_URL}/{deleted.id}")
 
     res = await authorized_client.get(constants.GOALS_URL)

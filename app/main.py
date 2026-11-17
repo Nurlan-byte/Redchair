@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from .core.config import settings
 from .core.database import engine
 from .exceptions import AppError
-from .routers import auth, goals, user
+from .routers import auth, goals, tasks, user
 
 
 @asynccontextmanager
@@ -23,6 +23,7 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(auth.router, prefix=settings.api_v1_prefix)
 app.include_router(user.router, prefix=settings.api_v1_prefix)
 app.include_router(goals.router, prefix=settings.api_v1_prefix)
+app.include_router(tasks.router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/")

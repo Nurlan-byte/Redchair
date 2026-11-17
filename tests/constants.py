@@ -11,6 +11,10 @@ LOGOUT_URL = f"{URL}/auth/logout"
 GOALS_URL = f"{URL}/goals"
 
 
+def tasks_url(goal_id: int) -> str:
+    return f"{GOALS_URL}/{goal_id}/tasks"
+
+
 def user_payload(**overrides):
     return {
         "username": "Ahmed",

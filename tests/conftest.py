@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -133,3 +133,20 @@ async def authorized_client(client, test_users):
     token = create_access_token(test_users[0].id)
     client.headers["Authorization"] = f"Bearer {token}"
     return client
+
+
+@pytest_asyncio.fixture
+async def make_goals(session):
+    async def make(user: models.User, count: int = 1) -> list[models.Goal]:
+        diary_id = await session.scalar(
+            select(models.Diary.id).where(models.Diary.user_id == user.id)
+        )
+        goals = [
+            models.Goal(diary_id=diary_id, title=f"Goal {i}", statistic=models.GoalStatistic())
+            for i in range(count)
+        ]
+        session.add_all(goals)
+        await session.flush()
+        return goals
+
+    return make

@@ -93,17 +93,17 @@ class Token(BaseModel):
     token_type: Literal["bearer"] = "bearer"
 
 
-GoalTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
 class GoalCreate(BaseModel):
-    title: GoalTitle
+    title: Title
     description: str | None = None
     visibility: Visibility = Visibility.PUBLIC
 
 
 class GoalUpdate(BaseModel):
-    title: GoalTitle | None = None
+    title: Title | None = None
     description: str | None = None
     visibility: Visibility | None = None
 
@@ -132,5 +132,20 @@ class GoalOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     statistic: GoalStatisticOut
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaskCreate(BaseModel):
+    title: Title
+
+
+class TaskOut(BaseModel):
+    id: int
+    title: str
+    is_done: bool
+    position: int
+    created_at: datetime
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

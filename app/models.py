@@ -128,3 +128,24 @@ class GoalStatistic(Base):
     last_entry_date: Mapped[date | None] = mapped_column(Date)
 
     goal: Mapped[Goal] = relationship(back_populates="statistic", lazy="raise")
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    goal_id: Mapped[int] = mapped_column(
+        ForeignKey("goals.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(200))
+    is_done: Mapped[bool] = mapped_column(
+        default=False, server_default=text("FALSE"), nullable=False
+    )
+    # Not unique: a reorder would otherwise collide with itself mid-update.
+    position: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), onupdate=func.now(), nullable=False
+    )
