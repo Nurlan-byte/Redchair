@@ -140,6 +140,22 @@ class TaskCreate(BaseModel):
     title: Title
 
 
+class TaskUpdate(BaseModel):
+    title: Title | None = None
+    is_done: bool | None = None
+
+    @field_validator("title", "is_done")
+    @classmethod
+    def reject_null(cls, value):
+        if value is None:
+            raise ValueError("Field cannot be null")
+        return value
+
+
+class TaskOrder(BaseModel):
+    task_ids: list[int]
+
+
 class TaskOut(BaseModel):
     id: int
     title: str

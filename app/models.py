@@ -132,6 +132,7 @@ class GoalStatistic(Base):
 
 class Task(Base):
     __tablename__ = "tasks"
+    __mapper_args__ = {"eager_defaults": True}  # noqa: RUF012 - read by SQLAlchemy, never mutated
 
     id: Mapped[int] = mapped_column(primary_key=True)
     goal_id: Mapped[int] = mapped_column(
