@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import delete, func, select
@@ -125,3 +125,51 @@ async def test_goal_statistics_check_constraints(
             await session.flush()
 
     assert _constraint_name(exc.value) == constraint
+
+
+ENTRY_DATE = date(2026, 9, 13)
+
+
+def _entry(goal_id: int, **fields) -> models.DailyEntry:
+    return models.DailyEntry(goal_id=goal_id, content="Ran 5 km", entry_date=ENTRY_DATE, **fields)
+
+
+async def test_daily_entries_one_live_entry_per_goal_per_day(session, test_users):
+    goal = await _goal(session, test_users[0])
+    session.add(_entry(goal.id))
+    await session.flush()
+
+    with pytest.raises(IntegrityError) as exc:
+        async with session.begin_nested():
+            session.add(_entry(goal.id))
+            await session.flush()
+
+    assert _constraint_name(exc.value) == "uq_daily_entries_goal_id_entry_date"
+
+
+async def test_daily_entries_soft_deleted_entry_frees_its_day(session, test_users):
+    goal = await _goal(session, test_users[0])
+    session.add(_entry(goal.id, deleted_at=datetime.now(UTC)))
+    await session.flush()
+
+    session.add(_entry(goal.id))
+    await session.flush()
+
+    entries = await session.scalar(
+        select(func.count())
+        .select_from(models.DailyEntry)
+        .where(models.DailyEntry.goal_id == goal.id, models.DailyEntry.entry_date == ENTRY_DATE)
+    )
+    assert entries == 2
+
+
+async def test_daily_entries_visibility_check_constraint(session, test_users):
+    goal = await _goal(session, test_users[0])
+
+    # A plain string bypasses the Enum on the Python side and reaches the CHECK.
+    with pytest.raises(IntegrityError) as exc:
+        async with session.begin_nested():
+            session.add(_entry(goal.id, visibility="FRIENDS"))
+            await session.flush()
+
+    assert _constraint_name(exc.value) == "ck_daily_entries_visibility"

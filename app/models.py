@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Index,
     String,
     Text,
     func,
@@ -150,3 +151,37 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()"), onupdate=func.now(), nullable=False
     )
+
+
+class DailyEntry(Base):
+    __tablename__ = "daily_entries"
+    __table_args__ = (
+        CheckConstraint(VISIBILITY_CHECK, name="visibility"),
+        # Partial, so a soft-deleted entry doesn't hold its day forever. The
+        # naming convention skips explicitly named indexes, hence the uq_ name.
+        Index(
+            "uq_daily_entries_goal_id_entry_date",
+            "goal_id",
+            "entry_date",
+            unique=True,
+            postgresql_where=text("deleted_at IS NULL"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    goal_id: Mapped[int] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"), nullable=False)
+    content: Mapped[str] = mapped_column(Text)
+    visibility: Mapped[Visibility] = mapped_column(
+        VisibilityType,
+        default=Visibility.PUBLIC,
+        server_default=Visibility.PUBLIC.value,
+        nullable=False,
+    )
+    entry_date: Mapped[date] = mapped_column(Date)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), onupdate=func.now(), nullable=False
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
